@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define MAX 256
+#define MAX 2048
  
 struct queue
 {

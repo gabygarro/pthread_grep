@@ -27,10 +27,11 @@
 #include <pthread.h> 
 
 #include <dirent.h>
+#include <errno.h>
 #include <regex.h>
 #include "queue.h"
 
-#define MAX_NUM_THREADS 16
+#define MAX_NUM_THREADS 1
 #define MAX_NUM_FILES 16
 #define MAX_MATCHES 1 // Máximo núm de coincidencias en un string
 
@@ -104,6 +105,7 @@ int get_args(int args, char* argv[]) {
 		printf("%s, ", files[i]);
 	}
 	num_arg_files = i;
+	//printf("%i\n", num_arg_files);
 	printf("\n\n");
 	return 0;
 }
@@ -115,12 +117,20 @@ int get_args(int args, char* argv[]) {
 void add_files(char * object, bool check_once) {
 	DIR * dir;
 	struct dirent * entry;
-	if (!(dir = opendir(object)))
-		return;
+	if (!(dir = opendir(object))) {
+		// Si es un archivo
+		if (strcmp(strerror(errno), "Not a directory") == 0) {
+			queue_push(object);
+			num_file_objs++;	
+			return;
+		}
+		printf("opendir failure for %s --> %s\n", object, strerror(errno));
+		print_error("No se puede abrir directorio.");
+	}
 	// Mientras el objeto existe
-	while((entry = readdir(dir)) != NULL && !check_once) {
+	while((entry = readdir(dir)) != NULL ) {
 		// Si es un directorio
-		if (entry->d_type == DT_DIR) {
+		if (entry->d_type == DT_DIR && !check_once) {
 			char path[1024];
 			// Ignorar estos dos
 			if (strcmp(entry->d_name, ".") == 0||
@@ -168,14 +178,6 @@ void * thread_exec(void * _thread_arg) {
 			printf("%s\n", file);
 			print_error("No se puede abrir archivo.");
 		}
-		/* Leer todo el archivo de un solo */
-		/*fseek(file_obj, 0, SEEK_END);
-		long fsize = ftell(file_obj);
-		fseek(file_obj, 0, SEEK_SET);
-		//Guardar los contenidos
-		char * buffer = malloc(fsize + 1);
-		fread(buffer, fsize, 1, file_obj);
-		buffer[fsize] = 0;*/
 		/* Leer línea por línea */
 		size_t read, len = 0;
 		char * buffer;
@@ -202,8 +204,9 @@ void * thread_exec(void * _thread_arg) {
 
 int main(int args, char* argv[]) {
 	// Iniciar reloj
-	struct timeval stop, start;
-	gettimeofday(&start, NULL);
+	clock_t start, end;
+	double cpu_time_used;
+	start = clock();
 
 	// Obtener valores de argumentos
 	get_args(args, argv);
@@ -213,6 +216,7 @@ int main(int args, char* argv[]) {
 	int i;
 	for (i = 0; i < num_arg_files; i++) {
 		add_files(files[i], false);
+		//printf("%s\n", files[i]);
 	}
 	
 	// Inicializar el regex
@@ -220,7 +224,7 @@ int main(int args, char* argv[]) {
 	if (regex_status != 0) 
 		print_error("La expresión regular no se pudo compilar.");
 	
-	// Crear threads
+		// Crear threads
 	pthread_t threads[MAX_NUM_THREADS];
 	int thread_id;
 	for (i = 0; i < MAX_NUM_THREADS; i++) {
@@ -243,9 +247,9 @@ int main(int args, char* argv[]) {
 	printf("\n%i coincidencias\n", num_matches);
 
 	// Mensaje de rendimiento
-	gettimeofday(&stop, NULL);
-
-	printf("%i archivos analizados en %lu microsegundos\n", num_file_objs, stop.tv_usec - start.tv_usec);
+	end = clock();
+ 	cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+	printf("%i archivos analizados en %f segundos\n", num_file_objs, cpu_time_used);
 	
 	pthread_exit(NULL);
 	return 0;
