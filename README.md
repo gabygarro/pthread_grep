@@ -7,7 +7,7 @@ Tecnológico de Costa Rica
 
 
 **Para compilar:**
- * gcc -pthread -o grep grep.c 
+ * gcc -pthread -o grep grep.c queue.c 
 
 
 **Uso del programa:**
@@ -26,3 +26,7 @@ Tecnológico de Costa Rica
 **Archivos / Directorio:**
  * Uno o más archivos, separado por espacios
  * Un directorio
+ 
+ **Ejemplo de uso:**
+ * ./grep -r "[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}" test
+ Este comando busca correos electrónicos.
